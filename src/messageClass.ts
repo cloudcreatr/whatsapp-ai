@@ -54,7 +54,7 @@ export class WhatsApp {
 	}
 
 	async getAudio(id: string) {
-		try {
+		
 			const response = await fetch(`https://graph.facebook.com/v20.0/${id}?phone_number_id=${this.WHATSAPP_BUSINESS_PHONE_NUMBER_ID}`, {
 				method: 'GET',
 				headers: {
@@ -77,9 +77,7 @@ export class WhatsApp {
 			});
 
 			return audioRes;
-		} catch (e) {
-			console.log('Fetch Error: ', e);
-		}
+		
 	}
 
 	async sendReaction(messageId: string, emoji: string) {
