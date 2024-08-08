@@ -1,6 +1,11 @@
 import { Hono } from 'hono';
 import { WhatsApp } from './messageClass';
 import OpenAI from 'openai/index.mjs';
+import { DrizzleD1Database } from 'drizzle-orm/d1';
+import { marks } from './schema/ai';
+import { z } from 'zod';
+import { eq } from 'drizzle-orm';
+import { zodFunction } from 'openai/helpers/zod.mjs';
 
 const app = new Hono<{
 	Bindings: Env;
@@ -73,9 +78,23 @@ app.post('/', async (c) => {
 									role: 'system',
 									content: 'You are a happy helpful assistant. limit your response to 4000 characater, and respond like a human',
 								},
+								{ role: 'system', content: 'to get marks of student call the toll and to insert also call the tool' },
 								{ role: 'user', content: texttranscript.text },
 							],
 							model: 'gpt-4o-mini-2024-07-18',
+							tools: [
+								zodFunction({
+									name: 'add_marks',
+									parameters: marks_obj,
+									description: 'Add marks to the database',
+									
+								}),
+								zodFunction({
+									name: 'get_marks',
+									parameters: get_marks_schema,
+									description: 'Get marks from the database',
+								}),
+							],
 						}),
 					]);
 					if (completionPromise.status === 'rejected') {
@@ -85,6 +104,7 @@ app.post('/', async (c) => {
 					const completion = completionPromise.value;
 
 					const message = completion.choices[0].message.content;
+					console.log(completion.choices[0].message.tool_calls);
 					if (message) {
 						await whatsapp.sendTextMessage(message);
 					} else {
@@ -103,7 +123,7 @@ app.post('/', async (c) => {
 
 					const [, completionPromise] = await Promise.allSettled([
 						whatsapp.sendTextMessage('thinking...'),
-						openai.chat.completions.create({
+						openai.beta.chat.completions.parse({
 							messages: [
 								{
 									role: 'system',
@@ -134,23 +154,36 @@ app.post('/', async (c) => {
 	return c.json('sucess', 200);
 });
 
-function generateAudio(text: string) {
-	return fetch(`https://api.elevenlabs.io/v1/text-to-speech/kPzsL2i3teMYv0FxEYQ6`, {
-		method: 'POST',
-		headers: {
-			'xi-api-key': 'sk_c6f26d8a9ad5d39e37bb05b33f1b73a9e73f82c17354e8b4',
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({
-			text: text,
-			model_id: 'eleven_turbo_v2_5',
-			voice_settings: {
-				stability: 0.5,
-				similarity_boost: 0.7,
-				use_speaker_boost: true,
-			},
-		}),
-	});
+const marks_obj = z.array(
+	z.object({
+		rollno: z.number(),
+		marks: z.number(),
+	})
+);
+
+type marksObj = z.infer<typeof marks_obj>;
+
+const get_marks_schema = z.number();
+
+type getMarksSchema = z.infer<typeof get_marks_schema>;
+
+async function add_marks(marksObj: marksObj, db: DrizzleD1Database) {
+	for (const mark of marksObj) {
+		await db.insert(marks).values({
+			rollno: mark.rollno,
+			marks: mark.marks,
+		});
+	}
+}
+
+async function get_marks(rollno: getMarksSchema, db: DrizzleD1Database) {
+	const result = await db
+		.select({
+			marks: marks.marks,
+		})
+		.from(marks)
+		.where(eq(marks.rollno, rollno));
+	return result[0];
 }
 
 export default app;
