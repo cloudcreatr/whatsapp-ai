@@ -22,62 +22,60 @@ export class WhatsApp {
 		this.token = token;
 	}
 
-	async uploadAudio(file: File | Blob, type: string) {
-		try {
-			const formdata = new FormData();
-			formdata.append('messaging_product', 'whatsapp');
-			formdata.append('file', file);
-			formdata.append('type', type);
+	// async uploadAudio(file: File | Blob, type: string) {
+	// 	try {
+	// 		const formdata = new FormData();
+	// 		formdata.append('messaging_product', 'whatsapp');
+	// 		formdata.append('file', file);
+	// 		formdata.append('type', type);
 
-			const response = await fetch(`https://graph.facebook.com/v20.0/${this.WHATSAPP_BUSINESS_PHONE_NUMBER_ID}/media`, {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${this.token}`,
-					// Remove the Content-Type header
-				},
-				body: formdata,
-			});
+	// 		const response = await fetch(`https://graph.facebook.com/v20.0/${this.WHATSAPP_BUSINESS_PHONE_NUMBER_ID}/media`, {
+	// 			method: 'POST',
+	// 			headers: {
+	// 				Authorization: `Bearer ${this.token}`,
+	// 				// Remove the Content-Type header
+	// 			},
+	// 			body: formdata,
+	// 		});
 
-			if (!response.ok) {
-				const errorData = await response.json();
-				console.error('API Error:', errorData);
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
+	// 		if (!response.ok) {
+	// 			const errorData = await response.json();
+	// 			console.error('API Error:', errorData);
+	// 			throw new Error(`HTTP error! status: ${response.status}`);
+	// 		}
 
-			const data: uploadResponse = await response.json();
-			console.log(data);
-			return data.id;
-		} catch (e) {
-			console.error('Fetch Error: ', e);
-			throw e; // Re-throw the error so it can be handled by the caller
-		}
-	}
+	// 		const data: uploadResponse = await response.json();
+	// 		console.log(data);
+	// 		return data.id;
+	// 	} catch (e) {
+	// 		console.error('Fetch Error: ', e);
+	// 		throw e; // Re-throw the error so it can be handled by the caller
+	// 	}
+	// }
 
 	async getAudio(id: string) {
-		
-			const response = await fetch(`https://graph.facebook.com/v20.0/${id}?phone_number_id=${this.WHATSAPP_BUSINESS_PHONE_NUMBER_ID}`, {
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json',
+		const response = await fetch(`https://graph.facebook.com/v20.0/${id}?phone_number_id=${this.WHATSAPP_BUSINESS_PHONE_NUMBER_ID}`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
 
-					Authorization: `Bearer ${this.token}`,
-				},
-			});
+				Authorization: `Bearer ${this.token}`,
+			},
+		});
 
-			const data: reterivemedia = await response.json();
+		const data = (await response.json()) as reterivemedia;
 
-			const url = data.url;
-			console.log(url);
-			const audioRes = await fetch(url, {
-				method: 'GET',
-				headers: {
-					Authorization: `Bearer ${this.token}`,
-					'User-Agent': 'cloudcreatr',
-				},
-			});
+		const url = data.url;
 
-			return audioRes;
-		
+		const audioRes = await fetch(url, {
+			method: 'GET',
+			headers: {
+				Authorization: `Bearer ${this.token}`,
+				'User-Agent': 'cloudcreatr',
+			},
+		});
+
+		return audioRes;
 	}
 
 	async sendReaction(messageId: string, emoji: string) {
