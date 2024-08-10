@@ -1,11 +1,15 @@
 import { Hono } from 'hono';
 import { WhatsApp } from './messageClass';
 import OpenAI from 'openai/index.mjs';
-import { drizzle, DrizzleD1Database } from 'drizzle-orm/d1';
-import { marks } from './schema/ai';
-import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/d1';
+
+import { returnAudioFile } from './util/audioProcess';
+import { isAudio } from './util/util';
+import { webhookComponent } from './webhokkComponents';
+import { Message } from './chat/completion';
+import { add_marks, get_marks, get_marks_schema, marks_obj, toolsArray } from './chat/tools';
 import { zodFunction } from 'openai/helpers/zod.mjs';
+import { storeMessageDB } from './chat/history';
 
 const app = new Hono<{
 	Bindings: Env;
@@ -39,14 +43,17 @@ app.post('/', async (c) => {
 		const messagearr = payload.entry[0].changes[0].value.messages;
 
 		if (messagearr) {
-			if (messagearr[0].type === 'audio') {
+			if (isAudio(messagearr)) {
 				const audioObj = messagearr[0].audio;
 				if (audioObj) {
 					const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
+					const messageDB = new storeMessageDB(drizzle(c.env.DB));
+
 					const [, , audioPromise] = await Promise.allSettled([
 						whatsapp.markAsRead(messagearr[0].id),
 						whatsapp.sendReaction(messagearr[0].id, '\uD83D\uDD04'),
 						whatsapp.getAudio(audioObj.id),
+						messageDB.loadMessage(Message),
 					]);
 
 					if (audioPromise.status === 'rejected') {
@@ -54,22 +61,16 @@ app.post('/', async (c) => {
 						return c.json('sucess', 200);
 					}
 
-					const audioResponse = audioPromise.value;
-
-					// Get the audio data as an ArrayBuffer
-					const audioArrayBuffer = await audioResponse.arrayBuffer();
+					const file = await returnAudioFile(audioPromise.value.arrayBuffer());
 
 					const openai = new OpenAI({
 						apiKey: c.env.openai,
 					});
 
-					// Create a File object from the ArrayBuffer
-					const file = new File([audioArrayBuffer], 'audio.ogg', { type: 'audio/ogg' });
-
 					const [, texttranscriptPromise] = await Promise.allSettled([
 						whatsapp.sendTextMessage('Transcribing audio...'),
 						openai.audio.transcriptions.create({
-							file: file,
+							file,
 							model: 'whisper-1',
 						}),
 					]);
@@ -82,31 +83,19 @@ app.post('/', async (c) => {
 					const texttranscript = texttranscriptPromise.value;
 					console.log(`TTS : ${texttranscript.text}`);
 
+					Message.push({
+						role: 'user',
+						content: texttranscript.text,
+					});
+
 					const [, completionPromise] = await Promise.allSettled([
 						whatsapp.sendTextMessage('thinking...'),
 						openai.chat.completions.create({
-							messages: [
-								{
-									role: 'system',
-									content: 'You are a happy helpful assistant. limit your response to 4000 characater, and respond like a human',
-								},
-								{ role: 'system', content: 'to get marks of student call the toll and to insert also call the tool' },
-								{ role: 'user', content: texttranscript.text },
-							],
 							model: 'gpt-4o-mini-2024-07-18',
-							tools: [
-								zodFunction({
-									name: 'add_marks',
-									parameters: marks_obj,
-									description: 'Add marks to the database',
-								}),
-								zodFunction({
-									name: 'get_marks',
-									parameters: get_marks_schema,
-									description: 'Get marks from the database',
-								}),
-							],
+							messages: Message,
+							tools: toolsArray,
 						}),
+						messageDB.saveMessage({ role: 'user', content: texttranscript.text }),
 					]);
 					if (completionPromise.status === 'rejected') {
 						console.log(completionPromise.reason);
@@ -116,40 +105,23 @@ app.post('/', async (c) => {
 
 					const completion = completionPromise.value;
 					const tools = completion.choices[0].message.tool_calls;
+
 					if (tools) {
 						for (const tool of tools) {
 							if (tool.function.name === 'add_marks') {
 								const params = marks_obj.parse(JSON.parse(tool.function.arguments));
 								const db = drizzle(c.env.DB);
 								await Promise.allSettled([whatsapp.sendTextMessage('Adding marks to the database'), add_marks(params, db)]);
+								Message.push({ role: 'assistant', tool_calls: tools });
+								Message.push({ role: 'tool', content: 'Added marks of student', tool_call_id: tool.id });
 								const chat = await openai.chat.completions.create({
-									messages: [
-										{
-											role: 'system',
-											content: 'You are a happy helpful assistant. limit your response to 4000 characater, and respond like a human',
-										},
-										{ role: 'system', content: 'to get marks of student call the toll and to insert also call the tool' },
-										{ role: 'user', content: texttranscript.text },
-										{ role: "assistant", tool_calls: tools },
-										{ role: 'tool', content: 'Added marks of student', tool_call_id: tool.id },
-									],
-									tools: [
-										zodFunction({
-											name: 'add_marks',
-											parameters: marks_obj,
-											description: 'Add marks to the database',
-										}),
-										zodFunction({
-											name: 'get_marks',
-											parameters: get_marks_schema,
-											description: 'Get marks from the database',
-										}),
-									],
+									messages: Message,
+
 									model: 'gpt-4o-mini-2024-07-18',
 								});
-								const message = chat.choices[0].message.content;
-								if (message) {
-									await whatsapp.sendTextMessage(message);
+								const message2 = chat.choices[0].message.content;
+								if (message2) {
+									await whatsapp.sendTextMessage(message2);
 									return c.json('sucess', 200);
 								} else {
 									await whatsapp.sendTextMessage('No response from the model');
@@ -167,29 +139,15 @@ app.post('/', async (c) => {
 									await whatsapp.sendTextMessage('Failed to get marks');
 									return c.json('sucess', 200);
 								}
+								Message.push({ role: 'assistant', tool_calls: tools });
+								Message.push({
+									role: 'tool',
+									content: JSON.stringify(marksPromise.value ? marksPromise.value : 'Roll No not found'),
+									tool_call_id: tool.id,
+								});
 								const chat = await openai.chat.completions.create({
-									messages: [
-										{
-											role: 'system',
-											content: 'You are a happy helpful assistant. limit your response to 4000 characater, and respond like a human',
-										},
-										{ role: 'system', content: 'to get marks of student call the toll and to insert also call the tool' },
-										{ role: 'user', content: texttranscript.text },
-										{ role: "assistant", tool_calls: tools },
-										{ role: 'tool', content: JSON.stringify(marksPromise.value ? marksPromise.value : "Roll No not found" ), tool_call_id: tool.id },
-									],
-									tools: [
-										zodFunction({
-											name: 'add_marks',
-											parameters: marks_obj,
-											description: 'Add marks to the database',
-										}),
-										zodFunction({
-											name: 'get_marks',
-											parameters: get_marks_schema,
-											description: 'Get marks from the database',
-										}),
-									],
+									messages: Message,
+
 									model: 'gpt-4o-mini-2024-07-18',
 								});
 								const message = chat.choices[0].message.content;
@@ -204,9 +162,9 @@ app.post('/', async (c) => {
 						}
 					}
 					const message = completion.choices[0].message.content;
-					console.log(completion.choices[0].message.tool_calls);
+
 					if (message) {
-						await whatsapp.sendTextMessage(message);
+						await Promise.allSettled([whatsapp.sendTextMessage(message), messageDB.saveMessage({ role: 'assistant', content: message })]);
 					} else {
 						await whatsapp.sendTextMessage('No response from the model');
 					}
@@ -214,35 +172,113 @@ app.post('/', async (c) => {
 			} else {
 				const text = messagearr[0].text?.body;
 				if (text) {
+					const messageDB = new storeMessageDB(drizzle(c.env.DB));
+
 					const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
-					await Promise.allSettled([whatsapp.markAsRead(messagearr[0].id), whatsapp.sendReaction(messagearr[0].id, '\uD83D\uDD04')]);
+					await Promise.allSettled([
+						whatsapp.markAsRead(messagearr[0].id),
+						whatsapp.sendReaction(messagearr[0].id, '\uD83D\uDD04'),
+
+						messageDB.loadMessage(Message),
+					]);
 
 					const openai = new OpenAI({
 						apiKey: c.env.openai,
 					});
 
+					Message.push({
+						role: 'user',
+						content: text,
+					});
+
 					const [, completionPromise] = await Promise.allSettled([
 						whatsapp.sendTextMessage('thinking...'),
 						openai.beta.chat.completions.parse({
-							messages: [
-								{
-									role: 'system',
-									content: 'You are a happy helpful assistant. limit your response to 4000 characater, and respond like a human',
-								},
-								{ role: 'user', content: text },
+							messages: Message,
+							tools: [
+								zodFunction({
+									name: 'add_marks',
+									parameters: marks_obj,
+									description: 'Add marks to the database',
+								}),
+								zodFunction({
+									name: 'get_marks',
+									parameters: get_marks_schema,
+									description: 'Get marks from the database',
+								}),
 							],
 							model: 'gpt-4o-mini-2024-07-18',
 						}),
+						messageDB.saveMessage({ role: 'user', content: text }),
 					]);
+
 					if (completionPromise.status === 'rejected') {
 						await whatsapp.sendTextMessage('Failed to get response from model');
 						return c.json('sucess', 200);
 					}
 					const completion = completionPromise.value;
+					const tools = completion.choices[0].message.tool_calls;
+					console.log('tools', tools);
+
+					if (tools) {
+						for (const tool of tools) {
+							if (tool.function.name === 'add_marks') {
+								const params = marks_obj.parse(JSON.parse(tool.function.arguments));
+								const db = drizzle(c.env.DB);
+								await Promise.allSettled([whatsapp.sendTextMessage('Adding marks to the database'), add_marks(params, db)]);
+								Message.push({ role: 'assistant', tool_calls: tools });
+								Message.push({ role: 'tool', content: 'Added marks of student', tool_call_id: tool.id });
+								console.log('tool call', JSON.stringify(Message));
+								const chat = await openai.chat.completions.create({
+									messages: Message,
+
+									model: 'gpt-4o-mini-2024-07-18',
+								});
+								const message2 = chat.choices[0].message.content;
+								if (message2) {
+									await whatsapp.sendTextMessage(message2);
+									return c.json('sucess', 200);
+								} else {
+									await whatsapp.sendTextMessage('No response from the model');
+									return c.json('sucess', 200);
+								}
+							} else if (tool.function.name === 'get_marks') {
+								const params = get_marks_schema.parse(JSON.parse(tool.function.arguments));
+								const db = drizzle(c.env.DB);
+								const [, marksPromise] = await Promise.allSettled([
+									whatsapp.sendTextMessage('Searching for the marks for the student'),
+									get_marks(params, db),
+								]);
+								if (marksPromise.status === 'rejected') {
+									console.log(marksPromise.reason);
+									await whatsapp.sendTextMessage('Failed to get marks');
+									return c.json('sucess', 200);
+								}
+								Message.push({ role: 'assistant', tool_calls: tools });
+								Message.push({
+									role: 'tool',
+									content: JSON.stringify(marksPromise.value ? marksPromise.value : 'Roll No not found'),
+									tool_call_id: tool.id,
+								});
+								const chat = await openai.chat.completions.create({
+									messages: Message,
+
+									model: 'gpt-4o-mini-2024-07-18',
+								});
+								const message = chat.choices[0].message.content;
+								if (message) {
+									await whatsapp.sendTextMessage(message);
+									return c.json('sucess', 200);
+								} else {
+									await whatsapp.sendTextMessage('No response from the model');
+									return c.json('sucess', 200);
+								}
+							}
+						}
+					}
 					const message = completion.choices[0].message.content;
-					console.log(message);
 					if (message) {
-						await whatsapp.sendTextMessage(message);
+						await Promise.allSettled([whatsapp.sendTextMessage(message), messageDB.saveMessage({ role: 'assistant', content: message })]);
 					} else {
 						await whatsapp.sendTextMessage('No response from the model');
 					}
@@ -254,30 +290,5 @@ app.post('/', async (c) => {
 	}
 	return c.json('sucess', 200);
 });
-
-const marks_obj = z.object({
-	rollno: z.number().describe("Student's roll number"),
-	marks: z.number().describe("Student's marks"),
-});
-
-type marksObj = z.infer<typeof marks_obj>;
-
-const get_marks_schema = z.object({
-	rollno: z.number().describe("Student's roll number"),
-});
-
-type getMarksSchema = z.infer<typeof get_marks_schema>;
-
-async function add_marks(marksObj: marksObj, db: DrizzleD1Database) {
-	await db.insert(marks).values({
-		rollno: marksObj.rollno,
-		marks: marksObj.marks,
-	});
-}
-
-async function get_marks(robj: getMarksSchema, db: DrizzleD1Database) {
-	const result = await db.select().from(marks).where(eq(robj.rollno, marks.rollno));
-	return result[0];
-}
 
 export default app;

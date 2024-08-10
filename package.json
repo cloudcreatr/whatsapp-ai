@@ -10,7 +10,8 @@
 		"typegen": "wrangler types",
 		"db:mig": "drizzle-kit generate",
 		"db:apply": "wrangler d1 migrations apply whatsapp-ai",
-		"db:drop": "drizzle-kit drop"
+		"db:drop": "drizzle-kit drop",
+		"tunnel": "sudo service cloudflared start"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.4.19",
