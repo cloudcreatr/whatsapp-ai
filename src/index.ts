@@ -105,6 +105,7 @@ app.post('/', async (c) => {
 
 					const completion = completionPromise.value;
 					const tools = completion.choices[0].message.tool_calls;
+					console.log('tools', tools);
 
 					if (tools) {
 						for (const tool of tools) {
@@ -158,6 +159,11 @@ app.post('/', async (c) => {
 									await whatsapp.sendTextMessage('No response from the model');
 									return c.json('sucess', 200);
 								}
+							} else if (tool.function.name === 'deleteHistory') {
+								const db = drizzle(c.env.DB);
+
+								await Promise.allSettled([whatsapp.sendTextMessage('Deleted the history of the chat'), messageDB.deleteHistory()]);
+								return c.json('sucess', 200);
 							}
 						}
 					}
@@ -195,18 +201,7 @@ app.post('/', async (c) => {
 						whatsapp.sendTextMessage('thinking...'),
 						openai.beta.chat.completions.parse({
 							messages: Message,
-							tools: [
-								zodFunction({
-									name: 'add_marks',
-									parameters: marks_obj,
-									description: 'Add marks to the database',
-								}),
-								zodFunction({
-									name: 'get_marks',
-									parameters: get_marks_schema,
-									description: 'Get marks from the database',
-								}),
-							],
+							tools: toolsArray,
 							model: 'gpt-4o-mini-2024-07-18',
 						}),
 						messageDB.saveMessage({ role: 'user', content: text }),
@@ -273,6 +268,11 @@ app.post('/', async (c) => {
 									await whatsapp.sendTextMessage('No response from the model');
 									return c.json('sucess', 200);
 								}
+							} else if (tool.function.name === 'deleteHistory') {
+								const db = drizzle(c.env.DB);
+
+								await Promise.allSettled([whatsapp.sendTextMessage('Deleted the history of the chat'), messageDB.deleteHistory()]);
+								return c.json('sucess', 200);
 							}
 						}
 					}

@@ -13,15 +13,15 @@ export class storeMessageDB {
 		for (const m of message) {
 			Message.push(m.message);
 		}
-		console.log('Load Message', Message);
+		
 	}
 	async saveMessage(Message: OpenAI.Chat.Completions.ChatCompletionMessageParam) {
 		const res = await this.db.insert(history).values({
 			message: Message,
 		});
-		console.log('Save Message', Message);
+		
 	}
-	async deleteMessage() {
+	async deleteHistory() {
 		await this.db.delete(history);
 	}
 }

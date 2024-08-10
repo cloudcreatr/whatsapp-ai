@@ -42,4 +42,9 @@ export const toolsArray: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 		parameters: get_marks_schema,
 		description: 'Get marks from the database',
 	}),
+	zodFunction({
+		name: 'deleteHistory',
+		description: 'call this tool to Delete the history of the chat, this will make you forget evrything',
+		parameters: z.object({}),
+	}),
 ];
