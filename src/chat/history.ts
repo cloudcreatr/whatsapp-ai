@@ -19,6 +19,7 @@ export class storeMessageDB {
 		const res = await this.db.insert(history).values({
 			message: Message,
 		});
+		console.log("Message Saved");
 		
 	}
 	async deleteHistory() {

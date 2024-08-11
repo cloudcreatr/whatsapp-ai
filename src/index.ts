@@ -133,13 +133,13 @@ app.post('/', async (c) => {
 
 					const completion = completionPromise.value;
 					const tools = completion.choices[0].message.tool_calls;
-					console.log('tools', tools);
+					console.log('tools found to be called in index.js', tools);
 
 					if (tools) {
 						try {
 							await executeTools.executeTools(tools);
 						} catch (e) {
-							console.log(e);
+							console.log(`Error in executing tools(index.ts): ${e}`);
 						}
 						c.json('sucess', 200);
 					}
@@ -202,14 +202,13 @@ app.post('/', async (c) => {
 						content: text,
 					});
 
-					console.log('Message', JSON.stringify(Message));
-
 					const [, completionPromise] = await Promise.allSettled([
 						whatsapp.sendTextMessage('thinking...'),
 						openai.beta.chat.completions.parse({
 							messages: Message,
 							tools: executeTools.genrateTools(),
 							model: 'gpt-4o-mini-2024-07-18',
+							parallel_tool_calls: false,
 						}),
 						messageDB.saveMessage({ role: 'user', content: text }),
 					]);
@@ -221,16 +220,22 @@ app.post('/', async (c) => {
 					}
 					const completion = completionPromise.value;
 					const tools = completion.choices[0].message.tool_calls;
-					console.log('tools', tools);
+				
 
-					if (tools) {
+					if (tools.length > 0) {
 						await executeTools.executeTools(tools);
-
-						c.json('sucess', 200);
+						console.log('Message (tool)', JSON.stringify(Message, null, 2));
+						return c.json('sucess', 200);
 					}
 					const message = completion.choices[0].message.content;
+					console.log('message ai', message);
 					if (message) {
 						await Promise.allSettled([whatsapp.sendTextMessage(message), messageDB.saveMessage({ role: 'assistant', content: message })]);
+						Message.push({
+							role: 'assistant',
+							content: message,
+						})
+						console.log('Message (text)', JSON.stringify(Message, null, 2));
 					} else {
 						await whatsapp.sendTextMessage('No response from the model');
 					}
