@@ -22,6 +22,7 @@ hub.verify_token="happy"
 wa-token="EAAGi4kGYHd0BOZBsotPnh4ZAhccZBcFoZALMgyJQnyHR4T6ymTdzbjdLvefLcsjHtOxf8YbxMlj7ZBl7QzwxxhwknbkkkdlaXw5Ll2zV53X8JfZA2tgNcsuOWyAfg8ZAhJpcQgemyEAaOEujY8cZA0jcrrujYmxBiJbAs0AlkHGLptPZAFfVDLZA3oAYRnYkYIAfJsQs3R3mj4zs3bBlcWGZBRp6ZCHPm36Q"
 wa-id="410631452124211"
 openai="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"
+resend="re_gdQ3pYsW_9PucAGJnHJJBTTF9UTHqgoYD"
 
 # Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
@@ -72,9 +73,9 @@ database_id = "16eb351c-8ba4-45d4-9b33-8d3ca6bf69ff"
 
 # Bind a KV Namespace. Use KV as persistent storage for small key-value pairs.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#kv-namespaces
-# [[kv_namespaces]]
-# binding = "MY_KV_NAMESPACE"
-# id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+[[kv_namespaces]]
+binding = "whatsapp_images"
+id = "9dc4a5a52ea649c5911528d55380579f"
 
 # Bind an mTLS certificate. Use to present a client certificate when communicating with another service.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#mtls-certificates

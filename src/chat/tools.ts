@@ -6,7 +6,7 @@ import { storeMessageDB } from './history';
 import { ParsedFunctionToolCall } from 'openai/resources/beta/chat/completions.mjs';
 import { WhatsApp } from '../messageClass';
 
-type ToolsArray = {
+export type ToolsArray = {
 	name: string;
 	parameters: any;
 	description: string;
@@ -97,16 +97,19 @@ export class Tools {
 
 				// console.log('test2', JSON.stringify(test2, null, 2));
 
-				const [, , ChatPromise] = await Promise.allSettled([
-					storeMessage.saveMessage({
-						role: 'assistant',
-						tool_calls: ToolsCalledArray,
-					}),
-					storeMessage.saveMessage({
-						role: 'tool',
-						content: res,
-						tool_call_id: toolsCalled.id,
-					}),
+				const [, ChatPromise] = await Promise.allSettled([
+					storeMessage.saveMessage([
+						{
+							role: 'assistant',
+							tool_calls: ToolsCalledArray,
+						},
+						{
+							role: 'tool',
+							content: res,
+							tool_call_id: toolsCalled.id,
+						},
+					]),
+
 					this.#openai.chat.completions.create({
 						model: 'gpt-4o-mini-2024-07-18',
 						messages: this.#Message,
@@ -138,10 +141,10 @@ export class Tools {
 						});
 						await Promise.allSettled([
 							this.#whatsapp.sendTextMessage(message),
-							storeMessage.saveMessage({
+							storeMessage.saveMessage([{
 								role: 'assistant',
 								content: message,
-							}),
+							}]),
 						]);
 					}
 
@@ -158,10 +161,12 @@ export class Tools {
 					});
 					await Promise.allSettled([
 						this.#whatsapp.sendTextMessage(message),
-						storeMessage.saveMessage({
-							role: 'assistant',
-							content: message,
-						}),
+						storeMessage.saveMessage([
+							{
+								role: 'assistant',
+								content: message,
+							},
+						]),
 					]);
 				} else {
 					this.#whatsapp.sendTextMessage('_No response from the AI_');

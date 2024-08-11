@@ -27,3 +27,10 @@ export function isAudio(messagearr: MessageType) {
 	}
 	return false;
 }
+
+export function isImage(messagearr: MessageType) {
+	if (messagearr[0].type === 'image' && messagearr[0].image) {
+		return true;
+	}
+	return false;
+}

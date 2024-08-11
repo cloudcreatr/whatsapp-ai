@@ -1,3 +1,4 @@
+import { stream } from 'elevenlabs';
 import { z } from 'zod';
 
 export interface uploadResponse {
@@ -33,8 +34,8 @@ interface confirmMessage {
 }
 
 export const confirmMessageSchema = z.object({
-	option1: z.string().describe('A text for button 1'),
-	option2: z.string().describe('A text for button 2'),
+	option1: z.string().describe('A text for button 1, MAX 20 characters'),
+	option2: z.string().describe('A text for button 2, MAX 20 characters'),
 	footer: z.string().optional().describe('A text for footer'),
 	body: z.string().describe('A text for body'),
 });
@@ -80,6 +81,27 @@ export class WhatsApp {
 	// 		throw e; // Re-throw the error so it can be handled by the caller
 	// 	}
 	// }
+
+	async downLoadImage(id: string) {
+		const response = await fetch(`https://graph.facebook.com/v20.0/${id}?phone_number_id=${this.WHATSAPP_BUSINESS_PHONE_NUMBER_ID}`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+
+				Authorization: `Bearer ${this.token}`,
+			},
+		});
+		const data = (await response.json()) as reterivemedia;
+		const url = data.url;
+		const response2 = await fetch(url, {
+			method: 'GET',
+			headers: {
+				Authorization: `Bearer ${this.token}`,
+				'User-Agent': 'cloudcreatr',
+			},
+		});
+		return { stream: response2.body, mime: data.mime_type };
+	}
 
 	async getAudio(id: string) {
 		const response = await fetch(`https://graph.facebook.com/v20.0/${id}?phone_number_id=${this.WHATSAPP_BUSINESS_PHONE_NUMBER_ID}`, {
@@ -130,6 +152,7 @@ export class WhatsApp {
 	}
 
 	comfirmMessage = async ({ option1, option2, footer, body }: z.infer<typeof confirmMessageSchema>) => {
+		console.log('comfirmMessage', option1, option2, footer, body);
 		const obj: confirmMessage = {
 			type: 'button',
 			body: {
@@ -160,8 +183,9 @@ export class WhatsApp {
 			};
 		}
 
-		await this.sendRequest('interactive', obj);
-		return "Message sent";		
+		const response = await this.sendRequest('interactive', obj);
+		console.log('response', await response?.json());
+		return 'Message sent';
 	};
 
 	async sendTextMessage(text: string) {
@@ -191,6 +215,7 @@ export class WhatsApp {
 					[type]: payload,
 				}),
 			});
+			return response;
 		} catch (e) {
 			console.log('Fetch Error: ', e);
 		}
