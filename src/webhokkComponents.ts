@@ -119,19 +119,7 @@ export type MessageType = [
 			id: string;
 			mime_type: string;
 		};
-		interactive?: {
-			type: {
-				button_reply?: {
-					id: string;
-					title: string;
-				};
-				list_reply?: {
-					id: string;
-					title: string;
-					description: string;
-				};
-			};
-		};
+		interactive?: ButtonReply | ListReply;
 		order?: {
 			catalog_id: string;
 			text: string;
@@ -182,3 +170,21 @@ export type MessageType = [
 		};
 	}
 ];
+
+
+type ButtonReply = {
+	type: 'button_reply';
+	button_reply: {
+		id: string;
+		title: string;
+	};
+};
+
+type ListReply = {
+	type: 'list_reply';
+	list_reply: {
+		id: string;
+		title: string;
+		description: string;
+	};
+};

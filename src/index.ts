@@ -16,15 +16,19 @@ const app = new Hono<{
 	Bindings: Env;
 }>();
 
-// app.get('/message', async (c) => {
-// 	const message = c.req.query('m');
-// 	if (!message) {
-// 		return c.text('Invalid request', 400);
-// 	}
-// 	const whatsapp = new WhatsApp('917666235448', c.env['wa-id'], c.env['wa-token']);
-// 	await whatsapp.sendTextMessage(message);
-// 	return c.json('sucess', 200);
-// });
+app.get('/message', async (c) => {
+	// const message = c.req.query('m');
+	// if (!message) {
+	// 	return c.text('Invalid request', 400);
+	// }
+	// const whatsapp = new WhatsApp('917666235448', c.env['wa-id'], c.env['wa-token']);
+	// await whatsapp.comfirmMessage({
+	// 	option1: 'yes om',
+	// 	option2: 'no om',
+	// 	body: 'Do you want to continue?',
+	// });
+	// return c.json('sucess', 200);
+});
 
 app.get('/', async (c) => {
 	const hub_challenge = c.req.query('hub.challenge');
@@ -42,7 +46,7 @@ app.post('/', async (c) => {
 		const payload: webhookComponent = await c.req.json();
 
 		const messagearr = payload.entry[0].changes[0].value.messages;
-
+		
 		if (messagearr) {
 			const text = messagearr[0].text?.body;
 			const interactive = messagearr[0].interactive;
@@ -167,7 +171,7 @@ app.post('/', async (c) => {
 						await whatsapp.sendTextMessage('_No response from the model_');
 					}
 				}
-			} else if (text) {
+			} else if (text ) {
 				const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
 
 				const db = drizzle(c.env.DB);
@@ -265,8 +269,9 @@ app.post('/', async (c) => {
 				} else {
 					await whatsapp.sendTextMessage('No response from the model');
 				}
-			} else if (interactive) {
-				const buttonObject = interactive.type.button_reply;
+			} else if (interactive && interactive.type === "button_reply") {
+				const buttonObject = interactive.button_reply;
+				console.log('buttonObject', buttonObject);
 				if (buttonObject) {
 					const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
 
@@ -321,7 +326,7 @@ app.post('/', async (c) => {
 						messageDB.loadMessage(Message),
 					]);
 
-					console.log('text', buttonObject.title);
+					
 					const text = buttonObject.title;
 					Message.push({
 						role: 'user',
