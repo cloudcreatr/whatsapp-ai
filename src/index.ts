@@ -46,20 +46,20 @@ app.post('/', async (c) => {
 		const payload: webhookComponent = await c.req.json();
 
 		const messagearr = payload.entry[0].changes[0].value.messages;
-		
+		const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
+		const db = drizzle(c.env.DB);
+		const messageDB = new storeMessageDB(db);
+		const openai = new OpenAI({
+			apiKey: c.env.openai,
+		});
+		const mark = new Mark(db);
+
 		if (messagearr) {
 			const text = messagearr[0].text?.body;
 			const interactive = messagearr[0].interactive;
 			if (isAudio(messagearr)) {
 				const audioObj = messagearr[0].audio;
 				if (audioObj) {
-					const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
-					const db = drizzle(c.env.DB);
-					const messageDB = new storeMessageDB(db);
-					const openai = new OpenAI({
-						apiKey: c.env.openai,
-					});
-
 					const mark = new Mark(db);
 					const executeTools = new Tools(
 						[
@@ -147,7 +147,11 @@ app.post('/', async (c) => {
 
 					if (completionPromise.status === 'rejected') {
 						console.log(completionPromise.reason);
-						await whatsapp.sendTextMessage('_Failed to get response from model_');
+						await Promise.allSettled([
+							whatsapp.sendTextMessage(' failed to get response from outer'),
+							whatsapp.sendTextMessage(completionPromise.reason),
+						]);
+
 						return c.json('sucess', 200);
 					}
 					const completion = completionPromise.value;
@@ -171,17 +175,7 @@ app.post('/', async (c) => {
 						await whatsapp.sendTextMessage('_No response from the model_');
 					}
 				}
-			} else if (text ) {
-				const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
-
-				const db = drizzle(c.env.DB);
-				const messageDB = new storeMessageDB(db);
-				const openai = new OpenAI({
-					apiKey: c.env.openai,
-				});
-
-				const mark = new Mark(db);
-
+			} else if (text) {
 				const executeTools = new Tools(
 					[
 						{
@@ -245,7 +239,11 @@ app.post('/', async (c) => {
 
 				if (completionPromise.status === 'rejected') {
 					console.log(completionPromise.reason);
-					await whatsapp.sendTextMessage('Failed to get response from model 2 ');
+					await Promise.allSettled([
+						whatsapp.sendTextMessage(' failed to get response from outer'),
+						whatsapp.sendTextMessage(completionPromise.reason),
+					]);
+
 					return c.json('sucess', 200);
 				}
 				const completion = completionPromise.value;
@@ -269,20 +267,10 @@ app.post('/', async (c) => {
 				} else {
 					await whatsapp.sendTextMessage('No response from the model');
 				}
-			} else if (interactive && interactive.type === "button_reply") {
+			} else if (interactive && interactive.type === 'button_reply') {
 				const buttonObject = interactive.button_reply;
 				console.log('buttonObject', buttonObject);
 				if (buttonObject) {
-					const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
-
-					const db = drizzle(c.env.DB);
-					const messageDB = new storeMessageDB(db);
-					const openai = new OpenAI({
-						apiKey: c.env.openai,
-					});
-
-					const mark = new Mark(db);
-
 					const executeTools = new Tools(
 						[
 							{
@@ -326,7 +314,6 @@ app.post('/', async (c) => {
 						messageDB.loadMessage(Message),
 					]);
 
-					
 					const text = buttonObject.title;
 					Message.push({
 						role: 'user',
@@ -345,7 +332,11 @@ app.post('/', async (c) => {
 
 					if (completionPromise.status === 'rejected') {
 						console.log(completionPromise.reason);
-						await whatsapp.sendTextMessage('Failed to get response from model 2 ');
+						await Promise.allSettled([
+							whatsapp.sendTextMessage(' failed to get response from outer'),
+							whatsapp.sendTextMessage(completionPromise.reason),
+						]);
+
 						return c.json('sucess', 200);
 					}
 					const completion = completionPromise.value;
