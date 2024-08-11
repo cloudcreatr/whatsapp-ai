@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface uploadResponse {
 	id: string;
 }
@@ -10,6 +12,32 @@ export interface reterivemedia {
 	file_size: string;
 	id: string;
 }
+
+interface confirmMessage {
+	type: 'button';
+	body: {
+		text: string;
+	};
+	footer?: {
+		text: string;
+	};
+	action: {
+		buttons: Array<{
+			type: 'reply';
+			reply: {
+				id: string;
+				title: string;
+			};
+		}>;
+	};
+}
+
+export const confirmMessageSchema = z.object({
+	option1: z.string().describe('A text for button 1'),
+	option2: z.string().describe('A text for button 2'),
+	footer: z.string().optional().describe('A text for footer'),
+	body: z.string().describe('A text for body'),
+});
 
 export class WhatsApp {
 	to: string;
@@ -96,11 +124,45 @@ export class WhatsApp {
 					message_id: messageId,
 				}),
 			});
-	
 		} catch (e) {
 			console.log('Fetch Error: ', e);
 		}
 	}
+
+	comfirmMessage = async ({ option1, option2, footer, body }: z.infer<typeof confirmMessageSchema>) => {
+		const obj: confirmMessage = {
+			type: 'button',
+			body: {
+				text: body,
+			},
+			action: {
+				buttons: [
+					{
+						type: 'reply',
+						reply: {
+							id: '1',
+							title: option1,
+						},
+					},
+					{
+						type: 'reply',
+						reply: {
+							id: '2',
+							title: option2,
+						},
+					},
+				],
+			},
+		};
+		if (footer) {
+			obj.footer = {
+				text: footer,
+			};
+		}
+
+		await this.sendRequest('interactive', obj);
+		return "Message sent";		
+	};
 
 	async sendTextMessage(text: string) {
 		await this.sendRequest('text', { body: text });

@@ -16,19 +16,30 @@ export const get_marks_schema = z.object({
 
 export type getMarksSchema = z.infer<typeof get_marks_schema>;
 
-export async function add_marks(marksObj: marksObj, db: DrizzleD1Database) {
-	await db.insert(marks).values({
-		rollno: marksObj.rollno,
-		marks: marksObj.marks,
-	});
-	return 'Marks added';
+export class Mark {
+	private db: DrizzleD1Database;
+	constructor(db: DrizzleD1Database) {
+		this.db = db;
+	}
+	add_marks = async (marksObj: marksObj) => {
+		try {
+			await this.db.insert(marks).values({
+				rollno: marksObj.rollno,
+				marks: marksObj.marks,
+			});
+			return 'Marks added';
+		} catch (err) {
+			return 'Marks not added';
+		}
+	};
+	get_marks = async (robj: getMarksSchema) => {
+		try {
+			const result = await this.db.select().from(marks).where(eq(robj.rollno, marks.rollno));
+			return result[0].marks ? JSON.stringify(result[0]) : 'No marks found';
+		} catch (err) {
+			return 'No marks found (internal error)';
+		}
+	};
 }
 
-export async function get_marks(robj: getMarksSchema, db: DrizzleD1Database) {
-	try {
-		const result = await db.select().from(marks).where(eq(robj.rollno, marks.rollno));
-		return result[0].marks ? result[0] : 'No marks found';
-	} catch (err) {
-		return 'No marks found (internal error)';
-	}
-}
+

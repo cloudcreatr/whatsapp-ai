@@ -12,7 +12,7 @@ type ToolsArray = {
 	description: string;
 	afterMessage?: string;
 	beforeMessage?: string;
-	function: (args: any, db: DrizzleD1Database) => Promise<string> | string;
+	function: (args: any) => Promise<string> | string;
 }[];
 
 export class Tools {
@@ -67,14 +67,16 @@ export class Tools {
 
 				const [, tool_responce] = await Promise.allSettled([
 					tool.beforeMessage ? this.#whatsapp.sendTextMessage(tool.beforeMessage) : Promise.resolve(),
-					tool.function(JSON.parse(toolsCalled.function.arguments), this.#db),
+					tool.function(JSON.parse(toolsCalled.function.arguments)),
 				]);
+				
 
 				if (tool_responce.status === 'rejected') {
 					console.log('From excute function', tool_responce.reason);
 					throw tool_responce.reason;
 				}
 				const res = tool_responce.value;
+				console.log('res', res);
 
 				Message.push({
 					role: 'assistant',
@@ -119,6 +121,14 @@ export class Tools {
 				const Chat = ChatPromise.value;
 				const tools = Chat.choices[0].message.tool_calls;
 				const message = Chat.choices[0].message.content;
+
+				const toolchatresp = {
+					tools: tools,
+					message: message,
+				
+				}
+
+				console.log('toolchatresp', JSON.stringify(toolchatresp, null, 2));
 
 				if (tools) {
 					if (message) {
