@@ -36,7 +36,7 @@ app.get('/', async (c) => {
 	if (!hub_challenge || !hub_verify_token) {
 		return c.text('Invalid request', 400);
 	}
-	if (hub_verify_token === c.env['hub.verify_token']) {
+	if (hub_verify_token === c.env.hub.verify_token) {
 		return c.text(hub_challenge, 200);
 	}
 });
@@ -54,7 +54,8 @@ app.post('/', async (c) => {
 		});
 		const mark = new Mark(db);
 
-		if (messagearr) {
+		
+		if (messagearr && messagearr[0]) {
 			const text = messagearr[0].text?.body;
 			const interactive = messagearr[0].interactive;
 			if (isAudio(messagearr)) {
@@ -263,7 +264,6 @@ app.post('/', async (c) => {
 						content: message,
 					});
 					console.log('Message (text)', JSON.stringify(Message, null, 2));
-					console.log('message 18', Message[18]);
 				} else {
 					await whatsapp.sendTextMessage('No response from the model');
 				}
@@ -356,7 +356,7 @@ app.post('/', async (c) => {
 							content: message,
 						});
 						console.log('Message (text)', JSON.stringify(Message, null, 2));
-						console.log('message 18', Message[18]);
+						
 					} else {
 						await whatsapp.sendTextMessage('No response from the model');
 					}

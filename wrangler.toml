@@ -17,8 +17,11 @@ compatibility_date = "2024-07-29"
 # - https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 # Note: Use secrets to store sensitive data.
 # - https://developers.cloudflare.com/workers/configuration/secrets/
-# [vars]
-# MY_VARIABLE = "production_value"
+[vars]
+hub.verify_token="happy"
+wa-token="EAAGi4kGYHd0BOZBsotPnh4ZAhccZBcFoZALMgyJQnyHR4T6ymTdzbjdLvefLcsjHtOxf8YbxMlj7ZBl7QzwxxhwknbkkkdlaXw5Ll2zV53X8JfZA2tgNcsuOWyAfg8ZAhJpcQgemyEAaOEujY8cZA0jcrrujYmxBiJbAs0AlkHGLptPZAFfVDLZA3oAYRnYkYIAfJsQs3R3mj4zs3bBlcWGZBRp6ZCHPm36Q"
+wa-id="410631452124211"
+openai="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"
 
 # Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
