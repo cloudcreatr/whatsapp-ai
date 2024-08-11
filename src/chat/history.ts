@@ -23,5 +23,6 @@ export class storeMessageDB {
 	}
 	async deleteHistory() {
 		await this.db.delete(history);
+		return "History Deleted";
 	}
 }

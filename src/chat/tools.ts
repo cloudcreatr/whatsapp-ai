@@ -4,7 +4,10 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { zodFunction } from 'openai/helpers/zod.mjs';
-
+import { storeMessageDB } from './history';
+import { ParsedFunction, ParsedFunctionToolCall } from 'openai/resources/beta/chat/completions.mjs';
+import { Message } from './completion';
+import { WhatsApp } from '../messageClass';
 export const marks_obj = z.object({
 	rollno: z.number().describe("Student's roll number"),
 	marks: z.number().describe("Student's marks"),
@@ -23,6 +26,7 @@ export async function add_marks(marksObj: marksObj, db: DrizzleD1Database) {
 		rollno: marksObj.rollno,
 		marks: marksObj.marks,
 	});
+	return 'Marks added';
 }
 
 export async function get_marks(robj: getMarksSchema, db: DrizzleD1Database) {
@@ -31,20 +35,121 @@ export async function get_marks(robj: getMarksSchema, db: DrizzleD1Database) {
 }
 
 
-export const toolsArray: OpenAI.Chat.Completions.ChatCompletionTool[] = [
-	zodFunction({
-		name: 'add_marks',
-		parameters: marks_obj,
-		description: 'Add marks to the database',
-	}),
-	zodFunction({
-		name: 'get_marks',
-		parameters: get_marks_schema,
-		description: 'Get marks from the database',
-	}),
-	zodFunction({
-		name: 'deleteHistory',
-		description: 'call this tool to Delete the history of the chat, this will make you forget evrything',
-		parameters: z.object({}),
-	}),
-];
+
+type ToolsArray = {
+	name: string;
+	parameters: any;
+	description: string;
+	function: Function;
+}[];
+
+export class Tools {
+	#toolsArray: ToolsArray;
+	#db: DrizzleD1Database;
+	#Message: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+
+	#openai: OpenAI;
+	#whatsapp: WhatsApp;
+	constructor(
+		toolsArray: ToolsArray,
+		db: DrizzleD1Database,
+		Message: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+		openaiKey: string,
+
+		whatsapp: WhatsApp
+	) {
+		this.#toolsArray = toolsArray;
+		this.#db = db;
+		this.#Message = Message;
+
+		this.#whatsapp = whatsapp;
+		this.#openai = new OpenAI({ apiKey: openaiKey });
+	}
+	genrateTools() {
+		const toolsArray: OpenAI.Chat.Completions.ChatCompletionTool[] = [];
+		this.#toolsArray.forEach((tool) => {
+			toolsArray.push(
+				zodFunction({
+					name: tool.name,
+					parameters: tool.parameters,
+					description: tool.description,
+				})
+			);
+		});
+		return toolsArray;
+	}
+	async executeTools(toolsCall: ParsedFunctionToolCall[]) {
+		try {
+			let ToolsCalledArray = toolsCall;
+			console.log('ToolsCalledArray', ToolsCalledArray);
+			while (ToolsCalledArray.length > 0) {
+				let toolsCalled = ToolsCalledArray[0];
+				console.log('toolsCalled id', toolsCalled.id);
+				console.log('toolsCalled', toolsCalled);
+				const tool = this.#toolsArray.find((tool) => tool.name === toolsCalled.function.name);
+
+
+				if (!tool) {
+					throw new Error(`Tool ${toolsCalled.function.name} not found`);
+				}
+				const res = await tool.function(JSON.parse(toolsCalled.function.arguments), this.#db);
+				console.log('res broo', res);
+				const storeMessage = new storeMessageDB(this.#db);
+				const Message = this.#Message;
+
+
+				Message.push({
+					role: 'assistant',
+					tool_calls: ToolsCalledArray,
+				});
+				Message.push({
+					role: 'tool',
+					content: res,
+					tool_call_id: toolsCalled.id,
+				});
+
+				const [, , ChatPromise] = await Promise.allSettled([
+					storeMessage.saveMessage({
+						role: 'assistant',
+						tool_calls: ToolsCalledArray,
+					}),
+					storeMessage.saveMessage({
+						role: 'tool',
+						content: res,
+						tool_call_id: toolsCalled.id,
+					}),
+					this.#openai.chat.completions.create({
+						model: 'gpt-4o-mini-2024-07-18',
+						messages: this.#Message,
+					}),
+				]);
+				if (ChatPromise.status === 'rejected') {
+					console.log("From excute function",ChatPromise.reason);
+					throw ChatPromise.reason;
+				}
+				const Chat = ChatPromise.value;
+				const tools = Chat.choices[0].message.tool_calls;
+				if (tools) {
+					console.log('tools another loop', tools);
+					ToolsCalledArray = tools;
+					break;
+				}
+				ToolsCalledArray = [];
+				const message = Chat.choices[0].message.content;
+				if (message) {
+					await Promise.allSettled([
+						this.#whatsapp.sendTextMessage(message),
+						storeMessage.saveMessage({
+							role: 'assistant',
+							content: message,
+						}),
+					]);
+				} else {
+					this.#whatsapp.sendTextMessage('No response from the AI');
+				}
+			}
+		} catch (error) {
+			console.log('execute Tool', error);
+		}
+	}
+}

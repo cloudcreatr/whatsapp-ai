@@ -96,6 +96,7 @@ export class WhatsApp {
 					message_id: messageId,
 				}),
 			});
+			console.log('Mark as read response:', await response.json());
 		} catch (e) {
 			console.log('Fetch Error: ', e);
 		}
