@@ -17,20 +17,59 @@ const app = new Hono<{
 	Bindings: Env;
 }>();
 
-// app.get('/message', async (c) => {
-// 	const email = new Email(c.env.resend, 'ai@cloudcreatr.com');
+app.get('/message', async (c) => {
+	const whatsapp = new WhatsApp('917666235448', c.env['wa-id'], c.env['wa-token']);
+	await whatsapp.sendOptionList({
+		button: 'Select students',
+		head: 'Students from ETC Branch',
+		body: 'Select the students from the list',
+		footer: 'Select the students from the list',
+		section: [
+			{
+				title: 'ETC 1st Year',
+				rows: [
+					{
+						id: '1',
+						title: 'Student 1',
+						description: 'ETC 1st Year',
+					},
+					{
+						id: '2',
+						title: 'Student 2',
+						description: 'ETC 1st Year',
+					},
+					{
+						id: '3',
+						title: 'Student 3',
+						description: 'ETC 1st Year',
+					},
+				],
+			},
+			{
+				title: 'ETC 2nd Year',
+				rows: [
+					{
+						id: '4',
+						title: 'Student 4',
+						description: 'ETC 2nd Year',
+					},
+					{
+						id: '5',
+						title: 'Student 5',
+						description: 'ETC 2nd Year',
+					},
+					{
+						id: '6',
+						title: 'Student 6',
+						description: 'ETC 2nd Year',
+					},
+				],
+			}
+		],
+	});
 
-// 	return c.json(
-// 		{
-// 			EmailMessage: await email.sendEmail({
-// 				to: 'cloudcreatr@gmail.com',
-// 				subject: 'Test',
-// 				body: 'Test',
-// 			}),
-// 		},
-// 		200
-// 	);
-// });
+	return c.text('Message', 200);
+});
 
 interface metadata {
 	mimetype: string;
@@ -78,6 +117,7 @@ app.post('/', async (c) => {
 		const email = new Email(c.env.resend, 'ai@cloudcreatr.com');
 
 		if (messagearr && messagearr.length > 0) {
+			console.log(payload.entry[0].changes[0].value.contacts[0].wa_id);
 			const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
 			const ToolsArray: ToolsArray = [
 				{
@@ -344,7 +384,7 @@ app.post('/', async (c) => {
 					const mimetype: metadata = { mimetype: image.mime };
 					await Promise.allSettled([
 						KV.put(imageObj.id, image.stream as any, {
-							expirationTtl: 18000,
+							expirationTtl: 60 * 60 * 24 * 7,
 							metadata: mimetype,
 						}),
 						whatsapp.sendTextMessage('_Image saved_'),
@@ -390,7 +430,8 @@ app.post('/', async (c) => {
 						console.log(completionPromise.reason);
 						await Promise.allSettled([
 							whatsapp.sendTextMessage(' failed to get response from outer (image)'),
-							whatsapp.sendTextMessage(completionPromise.reason),
+							whatsapp.sendTextMessage(JSON.stringify(completionPromise.reason)),
+							whatsapp.sendTextMessage(JSON.stringify(Message[Message.length - 1])),
 						]);
 
 						return c.json('sucess', 200);
@@ -416,6 +457,8 @@ app.post('/', async (c) => {
 						await whatsapp.sendTextMessage('No response from the model');
 					}
 				}
+			} else if (interactive && interactive.type === 'list_reply') {
+				await 
 			}
 		}
 	} catch (e) {
