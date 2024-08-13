@@ -76,7 +76,7 @@ export class Tools {
 					throw tool_responce.reason;
 				}
 				const res = tool_responce.value;
-				console.log('res', res);
+			
 
 				Message.push({
 					role: 'assistant',
@@ -88,14 +88,7 @@ export class Tools {
 					tool_call_id: toolsCalled.id,
 				});
 
-				// const test2 = {
-				// 	tool_calls: ToolsCalledArray,
-				// 	the_tool_excuting: toolsCalled,
-				// 	tool_responce: res,
-
-				// };
-
-				// console.log('test2', JSON.stringify(test2, null, 2));
+			
 
 				const [, ChatPromise] = await Promise.allSettled([
 					storeMessage.saveMessage([
@@ -125,13 +118,9 @@ export class Tools {
 				const tools = Chat.choices[0].message.tool_calls;
 				const message = Chat.choices[0].message.content;
 
-				const toolchatresp = {
-					tools: tools,
-					message: message,
 				
-				}
 
-				console.log('toolchatresp', JSON.stringify(toolchatresp, null, 2));
+				
 
 				if (tools) {
 					if (message) {
