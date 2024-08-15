@@ -104,8 +104,3 @@ database_id = "16eb351c-8ba4-45d4-9b33-8d3ca6bf69ff"
 # binding = "MY_SERVICE"
 # service = "my-service"
 
-# Bind a Vectorize index. Use to store and query vector embeddings for semantic search, classification and other vector search use-cases.
-# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#vectorize-indexes
-# [[vectorize]]
-# binding = "MY_INDEX"
-# index_name = "my-index"

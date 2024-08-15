@@ -42,6 +42,7 @@ app.post('/', async (c) => {
 
 		if (messagearr && messagearr.length > 0) {
 			console.log(payload.entry[0].changes[0].value.contacts[0].wa_id);
+			
 			const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
 			const startHandleMessage = performance.now();
 			const handleMessage = new HandleMessage({
