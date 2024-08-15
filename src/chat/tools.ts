@@ -64,19 +64,19 @@ export class Tools {
 				if (!tool) {
 					throw new Error(`Tool ${toolsCalled.function.name} not found`);
 				}
-
+				const start = performance.now();
 				const [, tool_responce] = await Promise.allSettled([
 					tool.beforeMessage ? this.#whatsapp.sendTextMessage(tool.beforeMessage) : Promise.resolve(),
 					tool.function(JSON.parse(toolsCalled.function.arguments)),
 				]);
-				
+				const end = performance.now();
+				console.log(`Tool ${toolsCalled.function.name}: ${end - start}ms`);
 
 				if (tool_responce.status === 'rejected') {
 					console.log('From excute function', tool_responce.reason);
 					throw tool_responce.reason;
 				}
 				const res = tool_responce.value;
-			
 
 				Message.push({
 					role: 'assistant',
@@ -87,8 +87,6 @@ export class Tools {
 					content: res,
 					tool_call_id: toolsCalled.id,
 				});
-
-			
 
 				const [, ChatPromise] = await Promise.allSettled([
 					storeMessage.saveMessage([
@@ -118,10 +116,6 @@ export class Tools {
 				const tools = Chat.choices[0].message.tool_calls;
 				const message = Chat.choices[0].message.content;
 
-				
-
-				
-
 				if (tools) {
 					if (message) {
 						this.#Message.push({
@@ -130,10 +124,12 @@ export class Tools {
 						});
 						await Promise.allSettled([
 							this.#whatsapp.sendTextMessage(message),
-							storeMessage.saveMessage([{
-								role: 'assistant',
-								content: message,
-							}]),
+							storeMessage.saveMessage([
+								{
+									role: 'assistant',
+									content: message,
+								},
+							]),
 						]);
 					}
 

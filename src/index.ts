@@ -20,39 +20,7 @@ interface payload {
 	text: string;
 }
 
-// app.post('/emd', async (c) => {
-// 	const text = await c.req.json<payload>();
-// 	console.log(text);
-// 	if (!text.text) {
-// 		return c.text('Invalid request', 400);
-// 	}
-// 	if (!text.type || (text.type !== 'query' && text.type !== 'upsert' && text.type !== 'generate')) {
-// 		return c.text('Invalid type', 400);
-// 	}
-// 	if (text.type === 'upsert' && !text.id) {
-// 		return c.text('Invalid ID', 400);
-// 	}
-// 	const vector = new Vector({ openai: c.env.openai });
-// 	if (text.type === 'query') {
-// 		const response = await vector.searchSubject(text.text);
-// 		return c.json(response, 200);
-// 	}
-// 	if (text.type === 'upsert') {
-// 		const response = await vector.generateEmbedding({ text: text.text, id: text.id!, metadata: { name: text.text } });
-// 		return c.json(response, 200);
-// 	}
-// 	if (text.type === 'generate') {
-// 		const openai = new OpenAI({
-// 			apiKey: c.env.openai,
-// 		});
-// 		const response = await openai.embeddings.create({
-// 			model: 'text-embedding-3-small',
-// 			input: text.text,
-// 		});
-// 		const emd = response.data[0].embedding;
-// 		return c.json(emd, 200);
-// 	}
-// });
+
 
 app.get('/', async (c) => {
 	const hub_challenge = c.req.query('hub.challenge');

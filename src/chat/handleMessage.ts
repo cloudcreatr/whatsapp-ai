@@ -16,7 +16,7 @@ import {
 	DateToUTCEpochInSecondsSchema,
 	UTCEpochInSecondsToDate,
 	UTCEpochInSecondsToDateSchema,
-} from '../attendance/currentUTCEpochInSeconds';
+} from '../tools/currentUTCEpochInSeconds';
 
 export class HandleMessage {
 	private executeTools: InstanceType<typeof Tools>;
@@ -128,6 +128,7 @@ export class HandleMessage {
 			role: 'user',
 			content: text,
 		});
+		const startCompletion = performance.now();
 		const [, completionPromise] = await Promise.allSettled([
 			this.whatsapp.sendTextMessage('_thinking..._'),
 			this.openai.beta.chat.completions.parse({
@@ -138,6 +139,8 @@ export class HandleMessage {
 			}),
 			this.storeMessage.saveMessage([{ role: 'user', content: text }]),
 		]);
+		const endCompletion = performance.now();
+		console.log(`Completion: ${endCompletion - startCompletion}ms`);
 
 		if (completionPromise.status === 'rejected') {
 			console.log(completionPromise.reason);
@@ -159,6 +162,7 @@ export class HandleMessage {
 		const message = completion.choices[0].message.content;
 		// console.log('message ai', message);
 		if (message) {
+			const LastMessage = performance.now();
 			await Promise.allSettled([
 				this.whatsapp.sendTextMessage(message),
 				this.storeMessage.saveMessage([{ role: 'assistant', content: message }]),
@@ -167,6 +171,7 @@ export class HandleMessage {
 				role: 'assistant',
 				content: message,
 			});
+			console.log(`LastMessage: ${performance.now() - LastMessage}ms`);
 			// console.log('Message (text)', JSON.stringify(Message, null, 2));
 		} else {
 			await this.whatsapp.sendTextMessage('No response from the model');
@@ -174,30 +179,33 @@ export class HandleMessage {
 	};
 
 	handleText = async (text: string, messageID: string) => {
+		const start = performance.now();
 		await Promise.allSettled([
 			this.whatsapp.markAsRead(messageID),
 			this.whatsapp.sendReaction(messageID, '\uD83D\uDD04'),
 			this.storeMessage.loadMessage(this.Message),
 		]);
-
+		console.log(`HandleText: ${performance.now() - start}ms`);
 		// console.log('text', text);
 
 		await this.handleCompletion(text);
 	};
 	handleAudio = async (audioID: string, messageID: string) => {
+		const start = performance.now();
 		const [, , audioPromise] = await Promise.allSettled([
 			this.whatsapp.markAsRead(messageID),
 			this.whatsapp.sendReaction(messageID, '\uD83D\uDD04'),
 			this.whatsapp.getAudio(audioID),
 			this.storeMessage.loadMessage(this.Message),
 		]);
+		console.log(`HandleAudio: ${performance.now() - start}ms`);
 		if (audioPromise.status === 'rejected') {
 			await this.whatsapp.sendTextMessage('Failed to get audio');
 			return;
 		}
 
 		const file = await returnAudioFile(audioPromise.value.arrayBuffer());
-
+        const startTranscription = performance.now();
 		const [, texttranscriptPromise] = await Promise.allSettled([
 			this.whatsapp.sendTextMessage('_Transcribing audio..._'),
 			this.openai.audio.transcriptions.create({
@@ -205,6 +213,8 @@ export class HandleMessage {
 				model: 'whisper-1',
 			}),
 		]);
+		console.log(`Transcription: ${performance.now() - startTranscription}ms`);
+		
 
 		if (texttranscriptPromise.status === 'rejected') {
 			await this.whatsapp.sendTextMessage('_Failed to transcribe audio_');
