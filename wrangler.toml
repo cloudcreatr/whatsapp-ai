@@ -19,10 +19,12 @@ compatibility_date = "2024-07-29"
 # - https://developers.cloudflare.com/workers/configuration/secrets/
 [vars]
 hub.verify_token="happy"
-wa-token="EAAGi4kGYHd0BO77VbZBdZAFxSBeXb7OEF5GggLZBlPrG04ZAXejGTQ8e1waJwzKDt2vhPZBVrc9CDManW3AXpo0ZAFV2swlmiEHyZCkJSZAiqFtt5ZBVXOB8JWjcCZAoSVWUZCEhPn9jXZAtSXttn9w2fCtmyCzWlKD6O0eR80oEHFnUhbRVUeaDGZAr7MRITlZBnq8OO7wnXzCSagfpZC04EJfcctKv8IMwMBaxym85vMVLdcgpo0ZD"
+wa-token="EAAGi4kGYHd0BO9ZBC4yWxrDFIq79VUWtdc1jAnJqUmuAUpF5B2aZCZAu16sQjcNpKSCz4PJpjilwQSq0kb6lHck3NY3eaaHHXOmsrfj4dpqCcmpcQlAHXtgVeOxqnm48IePwtIS0nbMOcWIV9jqdzleL9pc2cD79pI4q9PfPJJsxtHwTtydB5iNywppuTTjkc5WtOPgNeF0Hn7ojbCgZAhE7ByGqr0MUt1KcaAVHalsZD"
 wa-id="410631452124211"
 openai="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"
 resend="re_gdQ3pYsW_9PucAGJnHJJBTTF9UTHqgoYD"
+UPSTASH_VECTOR_REST_URL="https://immune-sawfly-28928-us1-vector.upstash.io"
+UPSTASH_VECTOR_REST_TOKEN="ABcFMGltbXVuZS1zYXdmbHktMjg5MjgtdXMxYWRtaW5aV00zWmpJNE5URXRZV1V5WlMwMFpqQXpMV0ppWXpBdFkyVXdaV0kwTXpnMU5qQTA="
 
 # Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
@@ -45,6 +47,10 @@ resend="re_gdQ3pYsW_9PucAGJnHJJBTTF9UTHqgoYD"
 binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "whatsapp-ai"
 database_id = "16eb351c-8ba4-45d4-9b33-8d3ca6bf69ff"
+[[d1_databases]]
+binding = "ATT" # i.e. available in your Worker on env.DB
+database_name = "attandancetracker"
+database_id = "d75592aa-39d5-4a1d-921b-3713e6edceb3"
 
 # Bind a dispatch namespace. Use Workers for Platforms to deploy serverless functions programmatically on behalf of your customers.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#dispatch-namespace-bindings-workers-for-platforms

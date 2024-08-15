@@ -11,7 +11,9 @@
 		"db:mig": "drizzle-kit generate",
 		"db:apply": "wrangler d1 migrations apply whatsapp-ai",
 		"db:drop": "drizzle-kit drop",
-		"tunnel": "sudo service cloudflared start"
+		"tunnel": "sudo service cloudflared start",
+		"ATT:seed": "wrangler d1 execute attandancetracker --file=src/attendance/seed.sql",
+		"ATT:exe": "wrangler d1 execute attandancetracker"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.4.19",
@@ -19,9 +21,10 @@
 		"drizzle-kit": "^0.24.0",
 		"typescript": "^5.5.4",
 		"vitest": "1.5.0",
-		"wrangler": "^3.69.1"
+		"wrangler": "^3.71.0"
 	},
 	"dependencies": {
+		"@upstash/vector": "^1.1.5",
 		"drizzle-orm": "^0.33.0",
 		"hono": "^4.5.4",
 		"openai": "^4.55.1",

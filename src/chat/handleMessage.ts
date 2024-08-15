@@ -8,9 +8,15 @@ import { z } from 'zod';
 import { confirmMessageSchema, WhatsApp } from '../messageClass';
 import { returnAudioFile } from '../util/audioProcess';
 import { Email, sendEmailSchema } from '../tools/email';
-
-
-
+import { searchSchema, Vector } from '../vector/vector';
+import {
+	currentUTCEpochInSeconds,
+	currentUTCEpochInSecondsSchema,
+	DateToUTCEpochInSeconds,
+	DateToUTCEpochInSecondsSchema,
+	UTCEpochInSecondsToDate,
+	UTCEpochInSecondsToDateSchema,
+} from '../attendance/currentUTCEpochInSeconds';
 
 export class HandleMessage {
 	private executeTools: InstanceType<typeof Tools>;
@@ -22,6 +28,7 @@ export class HandleMessage {
 	private whatsapp: InstanceType<typeof WhatsApp>;
 	private email: InstanceType<typeof Email>;
 	private Message: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+	private vector: InstanceType<typeof Vector>;
 
 	constructor({
 		db,
@@ -45,6 +52,7 @@ export class HandleMessage {
 		this.email = new Email(emailToken, FromEmail);
 		this.whatsapp = whatsapp;
 		this.Message = Message;
+		this.vector = new Vector({ openai: openaikey });
 		this.toolsArray = [
 			{
 				name: 'add_marks',
@@ -83,6 +91,34 @@ export class HandleMessage {
 					'Sends an email to the provided email address, only call this tool if you have confirmed to send this email and its content through comfirmMessage',
 				function: this.email.sendEmail,
 			},
+			{
+				name: 'searchSubject',
+				parameters: searchSchema,
+				beforeMessage: '_searching subject_',
+				description: 'Search the subject in the vector database',
+				function: this.vector.searchSubject,
+			},
+			{
+				name: 'DateToUTCEpochInSeconds',
+				parameters: DateToUTCEpochInSecondsSchema,
+				beforeMessage: '_converting date to UTC epoch in seconds_',
+				description: 'Convert the date to UTC epoch in seconds',
+				function: DateToUTCEpochInSeconds,
+			},
+			{
+				name: 'currentUTCEpochInSeconds',
+				parameters: currentUTCEpochInSecondsSchema,
+				beforeMessage: '_getting current UTC epoch in seconds_',
+				description: 'Get the current UTC epoch in seconds',
+				function: currentUTCEpochInSeconds,
+			},
+			{
+				name: 'UTCEpochInSecondsToDate',
+				parameters: UTCEpochInSecondsToDateSchema,
+				beforeMessage: '_converting UTC epoch in seconds to ISO date string_',
+				description: 'Convert the UTC epoch in seconds to ISO date string adjusted to IST',
+				function: UTCEpochInSecondsToDate,
+			},
 		];
 		this.executeTools = new Tools(this.toolsArray, this.db, this.Message, openaikey, this.whatsapp);
 	}
@@ -117,11 +153,11 @@ export class HandleMessage {
 
 		if (tools.length > 0) {
 			await this.executeTools.executeTools(tools);
-			console.log('Message (tool)', JSON.stringify(Message, null, 2));
+			// console.log('Message (tool)', JSON.stringify(Message, null, 2));
 			return;
 		}
 		const message = completion.choices[0].message.content;
-		console.log('message ai', message);
+		// console.log('message ai', message);
 		if (message) {
 			await Promise.allSettled([
 				this.whatsapp.sendTextMessage(message),
@@ -131,7 +167,7 @@ export class HandleMessage {
 				role: 'assistant',
 				content: message,
 			});
-			console.log('Message (text)', JSON.stringify(Message, null, 2));
+			// console.log('Message (text)', JSON.stringify(Message, null, 2));
 		} else {
 			await this.whatsapp.sendTextMessage('No response from the model');
 		}
@@ -144,7 +180,7 @@ export class HandleMessage {
 			this.storeMessage.loadMessage(this.Message),
 		]);
 
-		console.log('text', text);
+		// console.log('text', text);
 
 		await this.handleCompletion(text);
 	};
