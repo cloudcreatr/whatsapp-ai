@@ -1,6 +1,8 @@
-import OpenAI from 'openai';
+import { CoreAssistantMessage, CoreSystemMessage, CoreToolMessage, CoreUserMessage } from 'ai';
 
-export const Message: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+export type MessagesType = CoreSystemMessage | CoreUserMessage | CoreAssistantMessage | CoreToolMessage
+export type MesaagesArrayType = Array<CoreSystemMessage | CoreUserMessage | CoreAssistantMessage | CoreToolMessage>
+export const Message: MesaagesArrayType = [
 	{
 		role: 'system',
 		content: `You are a happy helpful assistant THAT IS TEXTING THROUGH WHATSAPP. limit your response to 4000 characater, and respond like a human.

@@ -7,8 +7,8 @@ import { isAudio } from './util/util';
 import { webhookComponent } from './webhokkComponents';
 
 import { HandleMessage } from './chat/handleMessage';
-import OpenAI from 'openai';
-import { Vector } from './vector/vector';
+import {  createGoogleGenerativeAI, google } from  "@ai-sdk/google"
+import { generateText } from 'ai';
 
 const app = new Hono<{
 	Bindings: Env;
@@ -20,6 +20,31 @@ interface payload {
 	text: string;
 }
 
+app.get("/test", async (c) => { 
+	const google2 = createGoogleGenerativeAI({
+		apiKey: c.env.GEMINI,
+	})
+	const { text } = await generateText({
+		model: google2("gemini-1.5-flash-002"),
+		prompt: "What is love",
+	})
+	return c.json({
+		working: text
+	})
+})
+
+app.get("/files/:id", async (c) => { 
+	const key = c.req.param("id")
+
+	const file = await c.env.WT.get(key)
+
+	if (!file) {
+		return c.text("File not found", 404)
+	}
+
+	
+
+})
 
 
 app.get('/', async (c) => {
@@ -31,6 +56,7 @@ app.get('/', async (c) => {
 	if (hub_verify_token === c.env.hub.verify_token) {
 		return c.text(hub_challenge, 200);
 	}
+	c.env.WT
 });
 
 app.post('/', async (c) => {
