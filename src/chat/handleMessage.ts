@@ -4,7 +4,7 @@ import { DrizzleD1Database } from 'drizzle-orm/d1';
 import { Message, MesaagesArrayType } from './completion';
 
 import { WhatsApp } from '../messageClass';
-import { returnAudioFile } from '../util/audioProcess';
+
 
 import { generateText, LanguageModel, UserContent } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -51,7 +51,6 @@ export class HandleMessage {
 			role: 'user',
 			content: text,
 		});
-		const startCompletion = performance.now();
 
 
 
@@ -63,15 +62,14 @@ export class HandleMessage {
 			}),
 			this.storeMessage.saveMessage([{ role: 'user', content: text }]),
 		]);
-		const endCompletion = performance.now();
-		console.log(`Completion: ${endCompletion - startCompletion}ms`);
 
 
 		if (completionPromise.status === 'rejected') {
 			console.log(completionPromise.reason);
 			await Promise.allSettled([
-				this.whatsapp.sendTextMessage(' failed to get response from outer'),
-				this.whatsapp.sendTextMessage(completionPromise.reason),
+				this.whatsapp.sendTextMessage(JSON.stringify(completionPromise.reason)),
+				this.whatsapp.sendTextMessage(' failed to get response from outer test'),
+
 			]);
 
 			return;
@@ -80,7 +78,7 @@ export class HandleMessage {
 
 
 		if (completionText) {
-			const LastMessage = performance.now();
+
 			await Promise.allSettled([
 				this.whatsapp.sendTextMessage(completionText),
 				this.storeMessage.saveMessage([{ role: 'assistant', content: completionText }]),
@@ -89,34 +87,32 @@ export class HandleMessage {
 				role: 'assistant',
 				content: completionText,
 			});
-			console.log(`LastMessage: ${performance.now() - LastMessage}ms`);
-			// console.log('Message (text)', JSON.stringify(Message, null, 2));
+
 		} else {
 			await this.whatsapp.sendTextMessage('No response from the model');
 		}
 	};
 
 	handleText = async (text: string, messageID: string) => {
-		const start = performance.now();
+
 		await Promise.allSettled([
 			this.whatsapp.markAsRead(messageID),
 			this.whatsapp.sendReaction(messageID, '\uD83D\uDD04'),
 			this.storeMessage.loadMessage(this.Message),
 		]);
-		console.log(`HandleText: ${performance.now() - start}ms`);
-		// console.log('text', text);
+
 
 		await this.handleCompletion(text);
 	};
 	handleAudio = async (audioID: string, messageID: string, host: string) => {
-		const start = performance.now();
+
 		const [, , audioPromise] = await Promise.allSettled([
 			this.whatsapp.markAsRead(messageID),
 			this.whatsapp.sendReaction(messageID, '\uD83D\uDD04'),
 			this.whatsapp.getAudio(audioID),
 			this.storeMessage.loadMessage(this.Message),
 		]);
-		console.log(`HandleAudio: ${performance.now() - start}ms`);
+
 		if (audioPromise.status === 'rejected') {
 			await this.whatsapp.sendTextMessage('Failed to get audio');
 			return;
@@ -124,19 +120,26 @@ export class HandleMessage {
 
 		const file = audioPromise.value.body as ReadableStream;
 
+		console.log("AUDIO REQUEST", audioPromise.value.status)
+		if (audioPromise.value.status !== 200) {
+			console.log("AUDIO REQUEST", await audioPromise.value.json())
+			await this.whatsapp.sendTextMessage('Failed to get audio');
+			return;
+		}
 
 
-		await this.handleFIleCompletion(file, host, 'audio/ogg');
+
+		await this.handleFIleCompletion(file, host, 'audio/ogg', "anaylse this");
 	};
-	handleImage = async (imageID: string, messageID: string, host: string, text?: string) => {
-		const start = performance.now();
+	handleImage = async (imageID: string, messageID: string, host: string, text: string) => {
+
 		const [, , imagePromise] = await Promise.allSettled([
 			this.whatsapp.markAsRead(messageID),
 			this.whatsapp.sendReaction(messageID, '\uD83D\uDD04'),
 			this.whatsapp.downLoadFile(imageID),
 			this.storeMessage.loadMessage(this.Message),
 		]);
-		console.log(`HandleImage: ${performance.now() - start}ms`);
+
 		if (imagePromise.status === 'rejected') {
 			await this.whatsapp.sendTextMessage('Failed to get image');
 			return;
@@ -144,9 +147,12 @@ export class HandleMessage {
 
 		const file = imagePromise.value.stream as ReadableStream;
 
+
+
+
 		await this.handleFIleCompletion(file, host, imagePromise.value.mime, text);
 	}
-	handleDocument = async (documentID: string, messageID: string, host: string, text?: string) => { 
+	handleDocument = async (documentID: string, messageID: string, host: string, text: string) => {
 
 		const start = performance.now();
 		const [, , documentPromise] = await Promise.allSettled([
@@ -165,7 +171,7 @@ export class HandleMessage {
 
 		await this.handleFIleCompletion(file, host, documentPromise.value.mime, text);
 	}
-	handleVideo = async (videoID: string, messageID: string, host: string, text?: string) => {
+	handleVideo = async (videoID: string, messageID: string, host: string, text: string) => {
 		const start = performance.now();
 		const [, , videoPromise] = await Promise.allSettled([
 			this.whatsapp.markAsRead(messageID),
@@ -183,74 +189,82 @@ export class HandleMessage {
 
 		await this.handleFIleCompletion(file, host, videoPromise.value.mime, text);
 	}
-	handleFIleCompletion = async (File: ReadableStream, host: string, mimeType: string, text?: string) => {
+	handleFIleCompletion = async (File: ReadableStream, host: string, mimeType: string, text: string) => {
 		const path = crypto.randomUUID()
-		await this.R2.put(path, File);
-		const fileURL = `${host}/files/${path}`;
+		await Promise.allSettled([
+			this.whatsapp.sendTextMessage('_thinking..._'),
+
+			this.R2.put(path, File, {
+				httpMetadata: {
+					contentType: mimeType,
+				}
+			})
+		])
+		const fileURL = `https://pub-86c0544a7c2840658cd58dbc029e9633.r2.dev/${path}`
+
 
 		const content: UserContent = [{
 			type: "file",
 			data: `${fileURL}`,
 			mimeType: mimeType,
 		}]
-		if (text) {
-			content.push({
-				type: "text",
-				text: text,
-			})
-		}
+
+		content.push({
+			type: "text",
+			text: "here some file, just go through it",
+		})
+
 
 		this.Message.push({
 			role: 'user',
 			content: content,
 		});
-		const startCompletion = performance.now();
 
 
 
-		const [, completionPromise] = await Promise.allSettled([
-			this.whatsapp.sendTextMessage('_thinking..._'),
+
+
+
+		const [response] = await Promise.allSettled([
 			generateText({
 				model: this.model,
 				messages: this.Message,
 			}),
-			this.storeMessage.saveMessage([{
-				role: 'user',
-				content: content,
-			}])
 
 		]);
-
-		const endCompletion = performance.now();
-		console.log(`Completion: ${endCompletion - startCompletion}ms`);
-
-
-		if (completionPromise.status === 'rejected') {
-			console.log(completionPromise.reason);
-			await Promise.allSettled([
-				this.whatsapp.sendTextMessage(' failed to get response from outer'),
-				this.whatsapp.sendTextMessage(completionPromise.reason),
-			]);
-
+		if (response.status === 'rejected') {
+			await this.whatsapp.sendTextMessage('Failed to get response from model');
+			await this.whatsapp.sendTextMessage(JSON.stringify(response.reason));
 			return;
 		}
-		const { text: completionText } = completionPromise.value;
+
+		const { text: completionText } = response.value;
+
+		await Promise.allSettled([this.whatsapp.sendTextMessage(completionText),
+		this.storeMessage.saveMessage([{
+			role: "user", content: [{
+				type: "file",
+				data: `${fileURL}`,
+				mimeType: mimeType,
+			}, {
+				type: "text",
+				text: "here some file, just go through it",
+			}]
+		}, { role: 'assistant', content: completionText }])
 
 
-		if (completionText) {
-			const LastMessage = performance.now();
-			await Promise.allSettled([
-				this.whatsapp.sendTextMessage(completionText),
-				this.storeMessage.saveMessage([{ role: 'assistant', content: completionText }]),
-			]);
-			this.Message.push({
-				role: 'assistant',
-				content: completionText,
-			});
-			console.log(`LastMessage: ${performance.now() - LastMessage}ms`);
 
-		} else {
-			await this.whatsapp.sendTextMessage('No response from the model');
-		}
+		]);
+		return
+
+
+
+
+
+
+
+
+
+
 	}
 }

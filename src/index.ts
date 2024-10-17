@@ -9,6 +9,7 @@ import { webhookComponent } from './webhokkComponents';
 import { HandleMessage } from './chat/handleMessage';
 import { createGoogleGenerativeAI, google } from "@ai-sdk/google"
 import { generateText } from 'ai';
+import { history } from './schema/ai';
 
 const app = new Hono<{
 	Bindings: Env;
@@ -20,17 +21,11 @@ interface payload {
 	text: string;
 }
 
-app.get("/test", async (c) => {
-	const google2 = createGoogleGenerativeAI({
-		apiKey: c.env.GEMINI,
-	})
-	const { text } = await generateText({
-		model: google2("gemini-1.5-flash-002"),
-		prompt: "What is love",
-	})
-	return c.json({
-		working: text
-	})
+app.get("/his", async (c) => {
+	const db = drizzle(c.env.DB);
+	await db.delete(history)
+	return c.json("done")
+
 })
 
 app.get("/files/:id", async (c) => {
@@ -41,6 +36,7 @@ app.get("/files/:id", async (c) => {
 		ignoreMethod: true
 	})
 	if (result) {
+		console.log("cache hit")
 		return result
 	}
 
@@ -48,8 +44,14 @@ app.get("/files/:id", async (c) => {
 	const file = await c.env.WT.get(key)
 
 	if (!file) {
+
 		return c.text("File not found", 404)
 	}
+	console.log("cache miss")
+	console.log({
+		"Content-Type": file.httpMetadata?.contentType || "application/octet-stream",
+		"key": key
+	})
 	const resopnse = new Response(file.body, {
 		status: 200,
 		headers: {
@@ -89,15 +91,13 @@ app.post('/', async (c) => {
 			console.log(payload.entry[0].changes[0].value.contacts[0].wa_id);
 
 			const whatsapp = new WhatsApp(payload.entry[0].changes[0].value.contacts[0].wa_id, c.env['wa-id'], c.env['wa-token']);
-			const startHandleMessage = performance.now();
+
 			const handleMessage = new HandleMessage({
 				db,
 				gemini,
 				whatsapp,
 				r2,
 			});
-			const endHandleMessage = performance.now();
-			console.log(`HandleMessage: ${endHandleMessage - startHandleMessage}ms`);
 
 			const text = messagearr[0].text?.body;
 			const interactive = messagearr[0].interactive;
@@ -106,10 +106,9 @@ app.post('/', async (c) => {
 				const audioObj = messagearr[0].audio;
 				if (audioObj) {
 					try {
-						const startHanfleAudio = performance.now();
+
 						await handleMessage.handleAudio(audioObj.id, messagearr[0].id, orgin);
-						const endHanfleAudio = performance.now();
-						console.log(`Audio: ${endHanfleAudio - startHanfleAudio}ms`);
+
 						return c.json('sucess', 200);
 					} catch (e) {
 						console.log(`Audio Error: ${e}`);
@@ -117,10 +116,9 @@ app.post('/', async (c) => {
 				}
 			} else if (text) {
 				try {
-					const startHandleText = performance.now();
+
 					await handleMessage.handleText(text, messagearr[0].id);
-					const endHandleText = performance.now();
-					console.log(`Text: ${endHandleText - startHandleText}ms`);
+
 					return c.json('sucess', 200);
 				} catch (e) {
 					console.log(` TEXT Error: ${e}`);
@@ -141,11 +139,10 @@ app.post('/', async (c) => {
 				const imageObj = messagearr[0].image;
 				if (imageObj) {
 					try {
-						const startHanfleImage = performance.now();
-						const text = imageObj.caption ? imageObj.caption : undefined;
+
+						const text = imageObj.caption ? imageObj.caption : "here is the file"
 						await handleMessage.handleImage(imageObj.id, messagearr[0].id, orgin, text);
-						const endHanfleImage = performance.now();
-						console.log(`Image: ${endHanfleImage - startHanfleImage}ms`);
+
 						return c.json('sucess', 200);
 					} catch (e) {
 						console.log(`Image Error: ${e}`);
@@ -155,31 +152,16 @@ app.post('/', async (c) => {
 				const documentObj = messagearr[0].document;
 				if (documentObj) {
 					try {
-						const startHanfleDocument = performance.now();
-						const text = documentObj.caption ? documentObj.caption : undefined;
+
+						const text = documentObj.caption ? documentObj.caption : "here is the file"
 						await handleMessage.handleDocument(documentObj.id, messagearr[0].id, orgin, text);
-						const endHanfleDocument = performance.now();
-						console.log(`Document: ${endHanfleDocument - startHanfleDocument}ms`);
+
 						return c.json('sucess', 200);
 					} catch (e) {
 						console.log(`Document Error: ${e}`);
 					}
 				}
-			} else if (isVideo(messagearr)) {
-				const videoObj = messagearr[0].video;
-				if (videoObj) {
-					try {
-						const startHanfleVideo = performance.now();
-						const text = videoObj.caption ? videoObj.caption : undefined;
-						await handleMessage.handleVideo(videoObj.id, messagearr[0].id, orgin, text);
-						const endHanfleVideo = performance.now();
-						console.log(`Video: ${endHanfleVideo - startHanfleVideo}ms`);
-						return c.json('sucess', 200);
-					} catch (e) {
-						console.log(`Video Error: ${e}`);
-					}
-				}
-			}
+			} 
 		}
 	} catch (e) {
 		console.log(`Critical Error: ${e}`);

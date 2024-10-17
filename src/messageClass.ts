@@ -76,7 +76,7 @@ export class WhatsApp {
 	}
 	async sendRequest(type: string, payload: any) {
 		try {
-			const start = performance.now();
+
 			const response = await fetch(`https://graph.facebook.com/v20.0/${this.WHATSAPP_BUSINESS_PHONE_NUMBER_ID}/messages`, {
 				method: 'POST',
 				headers: {
@@ -92,10 +92,10 @@ export class WhatsApp {
 				}),
 			});
 			if (!response.ok) {
+				console.log("PAyload", payload);
 				console.log('Error:', await response.json());
 			}
-			const end = performance.now();
-			console.log(`Whatsapp (${type}): ${end - start}ms`);
+
 			return response;
 		} catch (e) {
 			console.log('Fetch Error: ', e);
@@ -111,7 +111,16 @@ export class WhatsApp {
 				Authorization: `Bearer ${this.token}`,
 			},
 		});
+
+		if (!response.ok) {
+			console.log('Error (downLoadFile):', await response.json());
+		}
+
+
 		const data = (await response.json()) as reterivemedia;
+
+
+
 		const url = data.url;
 		const response2 = await fetch(url, {
 			method: 'GET',
@@ -120,6 +129,12 @@ export class WhatsApp {
 				'User-Agent': 'cloudcreatr',
 			},
 		});
+
+		if (!response2.ok) {
+			console.log('Error (downLoadFile):', await response2.json());
+		}
+
+
 		return { stream: response2.body, mime: data.mime_type };
 	}
 
@@ -167,7 +182,8 @@ export class WhatsApp {
 				}),
 			});
 			if (!response.ok) {
-				console.log('Error:', await response.json());
+
+				console.log('Error (markAsRead):', await response.json());
 			}
 		} catch (e) {
 			console.log('Fetch Error: ', e);

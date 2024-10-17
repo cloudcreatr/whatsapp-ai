@@ -9,23 +9,20 @@ export class storeMessageDB {
 		this.db = db;
 	}
 	async loadMessage(Message: MesaagesArrayType) {
-		const start = performance.now();
+		
 		const message = await this.db.select().from(history);
 		if (message.length === 0) return;
 		for (const m of message) {
 
 			Message.push(m.message);
 		}
-		const end = performance.now();
-		console.log(`Message Loaded: ${end - start}ms`);
+	
 	}
 	async saveMessage(Message: MesaagesArrayType) {
-		const start = performance.now();
+	
 		const values = Message.map((m) => ({ message: m  }));
 		const res = await this.db.insert(history).values(values);
-		console.log('Message Saved');
-		const end = performance.now();
-		console.log(`Message Saved: ${end - start}ms`);
+		
 	}
 	deleteHistory = async () => {
 		try {

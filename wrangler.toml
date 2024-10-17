@@ -19,14 +19,11 @@ compatibility_date = "2024-07-29"
 # - https://developers.cloudflare.com/workers/configuration/secrets/
 [vars]
 hub.verify_token="happy"
-wa-token="EAAGi4kGYHd0BO4EDk89Pg6Wa6Mj1Wx5y2JG8YNiYq3iWa7cPeFvGhX1usdRh0oiN11EZAjlnthI5qPUOFmy89L3Aw361vMFe0nJEfgZB78G1BQHyAO5DbTecJU44ZAYmnr2ZC8xBTzztcegCoqcFrDZCFzc5HQxm9jFKZAdAX3gdkMcDWqRGT7xIiY21yyC0UR5HxHEUId1AyyP39yLYqpY6aBJ85mcZAi4eboZD"
+wa-token="EAAGi4kGYHd0BO5up9ZBMPZA10CCZBZCICmenjlCk26ZBGUK4fCWPo80RN0D811YKy4foHkWefhMamrKKWsSNvbBIBQGLZAgirQPuK2WikKfyFSJ7MZC5U41t9yxUDhBQvXkCxZC6udkRo9wVdndLEJ8Ga5ZCa0P212ZCSQofGQzlP3vUAc3NVjIQ7uHJhFkOLnCrhUjwZDZD"
 wa-id="410631452124211"
-openai="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"
 resend="re_gdQ3pYsW_9PucAGJnHJJBTTF9UTHqgoYD"
-UPSTASH_VECTOR_REST_URL="https://immune-sawfly-28928-us1-vector.upstash.io"
-UPSTASH_VECTOR_REST_TOKEN="ABcFMGltbXVuZS1zYXdmbHktMjg5MjgtdXMxYWRtaW5aV00zWmpJNE5URXRZV1V5WlMwMFpqQXpMV0ppWXpBdFkyVXdaV0kwTXpnMU5qQTA="
 GEMINI="AIzaSyBBeTifrChbrc2sZi0NI39nGWeZ_KjtHsQ"
-STORAGE_URL="wt2.cloudcreatr.com"
+
 # Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
 # [ai]
@@ -105,3 +102,7 @@ binding = "WT"
 # binding = "MY_SERVICE"
 # service = "my-service"
 
+# wrangler.toml (wrangler v3.79.0^)
+[observability]
+enabled = true
+head_sampling_rate = 1
