@@ -28,8 +28,7 @@ export class HandleMessage {
 	}: {
 		db: DrizzleD1Database;
 		gemini: string;
-		emailToken: string;
-		FromEmail: string;
+
 		whatsapp: InstanceType<typeof WhatsApp>;
 		r2: R2Bucket;
 	}) {
@@ -123,13 +122,68 @@ export class HandleMessage {
 			return;
 		}
 
-		const file = await returnAudioFile(audioPromise.value.arrayBuffer());
+		const file = audioPromise.value.body as ReadableStream;
 
 
 
 		await this.handleFIleCompletion(file, host, 'audio/ogg');
 	};
-	handleFIleCompletion = async (File: File, host: string, mimeType: string, text?: string) => {
+	handleImage = async (imageID: string, messageID: string, host: string, text?: string) => {
+		const start = performance.now();
+		const [, , imagePromise] = await Promise.allSettled([
+			this.whatsapp.markAsRead(messageID),
+			this.whatsapp.sendReaction(messageID, '\uD83D\uDD04'),
+			this.whatsapp.downLoadFile(imageID),
+			this.storeMessage.loadMessage(this.Message),
+		]);
+		console.log(`HandleImage: ${performance.now() - start}ms`);
+		if (imagePromise.status === 'rejected') {
+			await this.whatsapp.sendTextMessage('Failed to get image');
+			return;
+		}
+
+		const file = imagePromise.value.stream as ReadableStream;
+
+		await this.handleFIleCompletion(file, host, imagePromise.value.mime, text);
+	}
+	handleDocument = async (documentID: string, messageID: string, host: string, text?: string) => { 
+
+		const start = performance.now();
+		const [, , documentPromise] = await Promise.allSettled([
+			this.whatsapp.markAsRead(messageID),
+			this.whatsapp.sendReaction(messageID, '\uD83D\uDD04'),
+			this.whatsapp.downLoadFile(documentID),
+			this.storeMessage.loadMessage(this.Message),
+		]);
+		console.log(`HandleDocument: ${performance.now() - start}ms`);
+		if (documentPromise.status === 'rejected') {
+			await this.whatsapp.sendTextMessage('Failed to get document');
+			return;
+		}
+
+		const file = documentPromise.value.stream as ReadableStream;
+
+		await this.handleFIleCompletion(file, host, documentPromise.value.mime, text);
+	}
+	handleVideo = async (videoID: string, messageID: string, host: string, text?: string) => {
+		const start = performance.now();
+		const [, , videoPromise] = await Promise.allSettled([
+			this.whatsapp.markAsRead(messageID),
+			this.whatsapp.sendReaction(messageID, '\uD83D\uDD04'),
+			this.whatsapp.downLoadFile(videoID),
+			this.storeMessage.loadMessage(this.Message),
+		]);
+		console.log(`HandleVideo: ${performance.now() - start}ms`);
+		if (videoPromise.status === 'rejected') {
+			await this.whatsapp.sendTextMessage('Failed to get video');
+			return;
+		}
+
+		const file = videoPromise.value.stream as ReadableStream;
+
+		await this.handleFIleCompletion(file, host, videoPromise.value.mime, text);
+	}
+	handleFIleCompletion = async (File: ReadableStream, host: string, mimeType: string, text?: string) => {
 		const path = crypto.randomUUID()
 		await this.R2.put(path, File);
 		const fileURL = `${host}/files/${path}`;

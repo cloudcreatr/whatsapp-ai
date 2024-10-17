@@ -34,3 +34,18 @@ export function isImage(messagearr: MessageType) {
 	}
 	return false;
 }
+
+
+export function isDocument(messagearr: MessageType) {
+	if (messagearr[0].type === 'document') {
+		return true;
+	}
+	return false;
+}
+
+export function isVideo(messagearr: MessageType) {
+	if (messagearr[0].type === 'video') {
+		return true;
+	}
+	return false;
+}

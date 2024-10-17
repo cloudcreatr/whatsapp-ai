@@ -91,6 +91,9 @@ export class WhatsApp {
 					[type]: payload,
 				}),
 			});
+			if (!response.ok) {
+				console.log('Error:', await response.json());
+			}
 			const end = performance.now();
 			console.log(`Whatsapp (${type}): ${end - start}ms`);
 			return response;
@@ -99,7 +102,7 @@ export class WhatsApp {
 		}
 	}
 
-	async downLoadImage(id: string) {
+	async downLoadFile(id: string) {
 		const response = await fetch(`https://graph.facebook.com/v20.0/${id}?phone_number_id=${this.WHATSAPP_BUSINESS_PHONE_NUMBER_ID}`, {
 			method: 'GET',
 			headers: {
@@ -163,6 +166,9 @@ export class WhatsApp {
 					message_id: messageId,
 				}),
 			});
+			if (!response.ok) {
+				console.log('Error:', await response.json());
+			}
 		} catch (e) {
 			console.log('Fetch Error: ', e);
 		}
